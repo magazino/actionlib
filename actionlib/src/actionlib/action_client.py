@@ -502,8 +502,10 @@ class ActionClient:
     ## example, the "goal" topic should occur under ns/goal
     ##
     ## @param ActionSpec The *Action message type.  The ActionClient
+    ## @param sub_queue_size * int. Length of the subscriber queue, will be used if set, falls back to the ros paramter
+    ## @param pub_queue_size * int. Length of the publisher queue, will be used if set, falls back to the ros paramter
     ## will grab the other message types from this type.
-    def __init__(self, ns, ActionSpec):
+    def __init__(self, ns, ActionSpec,  sub_queue_size=None, pub_queue_size=None):
         self.ns = ns
         self.last_status_msg = None
 
@@ -517,8 +519,8 @@ class ActionClient:
         except AttributeError:
             raise ActionException("Type is not an action spec: %s" % str(ActionSpec))
 
-        self.pub_queue_size = rospy.get_param('actionlib_client_pub_queue_size', 10)
-        if self.pub_queue_size < 0:
+        self.pub_queue_size = pub_queue_size or rospy.get_param('actionlib_client_pub_queue_size', 10)
+        if pub_queue_size is None and self.pub_queue_size < 0:
             self.pub_queue_size = 10
         self.pub_goal = rospy.Publisher(rospy.remap_name(ns) + '/goal', self.ActionGoal, queue_size=self.pub_queue_size)
         self.pub_cancel = rospy.Publisher(rospy.remap_name(ns) + '/cancel', GoalID, queue_size=self.pub_queue_size)

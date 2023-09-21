@@ -60,7 +60,9 @@ class ActionServer:
     ## @param  goal_cb A goal callback to be called when the ActionServer receives a new goal over the wire
     ## @param  cancel_cb A cancel callback to be called when the ActionServer receives a new cancel request over the wire
     ## @param  auto_start A boolean value that tells the ActionServer whether or not to start publishing as soon as it comes up. THIS SHOULD ALWAYS BE SET TO FALSE TO AVOID RACE CONDITIONS and start() should be called after construction of the server.
-    def __init__(self, ns,  ActionSpec, goal_cb, cancel_cb=nop_cb, auto_start=True):
+    ## @param sub_queue_size The queue size of subscribers, if not set use the param actionlib_server_sub_queue_size, default to -1
+    ## @param pub_queue_size The queue size of publisher, if not set use the param actionlib_server_pub_queue_size, default to 50
+    def __init__(self, ns,  ActionSpec, goal_cb, cancel_cb=nop_cb, auto_start=True, sub_queue_size=None, pub_queue_size=None):
         self.ns = ns
 
         try:
@@ -99,6 +101,9 @@ class ActionServer:
 
         self.started = False
 
+        self._pub_queue_size = pub_queue_size
+        self._sub_queue_size = sub_queue_size
+
         if self.auto_start:
             rospy.logwarn("You've passed in true for auto_start to the python action server, you should always pass "
                           "in false to avoid race conditions.")
@@ -134,14 +139,14 @@ class ActionServer:
 
     ## @brief  Initialize all ROS connections and setup timers
     def initialize(self):
-        self.pub_queue_size = rospy.get_param('actionlib_server_pub_queue_size', 50)
+        self.pub_queue_size = self._pub_queue_size or rospy.get_param('actionlib_server_pub_queue_size', 50)
         if self.pub_queue_size < 0:
             self.pub_queue_size = 50
         self.status_pub = rospy.Publisher(rospy.remap_name(self.ns)+"/status", GoalStatusArray, latch=True, queue_size=self.pub_queue_size)
         self.result_pub = rospy.Publisher(rospy.remap_name(self.ns)+"/result", self.ActionResult, queue_size=self.pub_queue_size)
         self.feedback_pub = rospy.Publisher(rospy.remap_name(self.ns)+"/feedback", self.ActionFeedback, queue_size=self.pub_queue_size)
 
-        self.sub_queue_size = rospy.get_param('actionlib_server_sub_queue_size', -1)
+        self.sub_queue_size = self._sub_queue_size or rospy.get_param('actionlib_server_sub_queue_size', -1)
         if self.sub_queue_size < 0:
             self.sub_queue_size = None
         self.goal_sub = rospy.Subscriber(rospy.remap_name(self.ns)+"/goal", self.ActionGoal, callback=self.internal_goal_callback, queue_size=self.sub_queue_size)
