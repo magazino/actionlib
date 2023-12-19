@@ -285,18 +285,23 @@ class SimpleActionServer:
                     rospy.logerr("execute_callback_ must exist. This is a bug in SimpleActionServer")
                     return
 
-                try:
-                    self.execute_callback(goal)
+                callback_thread = threading.Thread(target=self.execute_callback_wrapper, args=[goal])
+                callback_thread.start()
+                callback_thread.join()
 
-                    if self.is_active():
-                        rospy.logwarn("Your executeCallback did not set the goal to a terminal status.  " +
-                                      "This is a bug in your ActionServer implementation. Fix your code!  " +
-                                      "For now, the ActionServer will set this goal to aborted")
-                        self.set_aborted(None, "No terminal state was set.")
-                except Exception as ex:
-                    rospy.logerr("Exception in your execute callback: %s\n%s", str(ex),
-                                 traceback.format_exc())
-                    self.set_aborted(None, "Exception in execute callback: %s" % str(ex))
+                if self.is_active():
+                    rospy.logwarn("Your executeCallback did not set the goal to a terminal status.  " +
+                                  "This is a bug in your ActionServer implementation. Fix your code!  " +
+                                  "For now, the ActionServer will set this goal to aborted")
+                    self.set_aborted(None, "No terminal state was set.")
 
             with self.execute_condition:
                 self.execute_condition.wait(loop_duration.to_sec())
+
+    def execute_callback_wrapper(self,goal):        
+        try:
+            self.execute_callback(goal)
+        except Exception as ex:
+            rospy.logerr("Exception in your execute callback: %s\n%s", str(ex),
+                            traceback.format_exc())
+            self.set_aborted(None, "Exception in execute callback: %s" % str(ex))
